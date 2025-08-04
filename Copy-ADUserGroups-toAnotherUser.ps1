@@ -1,6 +1,9 @@
 # Define users
-$sourceUser = "sourceUserSamAccountName"
-$targetUser = "targetUserSamAccountName"
+$srcuser = Read-Host "Please specify the source user from which you want to copy the AD groups (SamAccountName). "
+$tgtuser = Read-Host "please specify the target user to which you want to copy  the AD groups (SamAccountName). "
+
+$sourceUser = "$srcuser"
+$targetUser = "$tgtuser"
 
 # Define log path
 $userlog = "$env:USERPROFILE"
@@ -55,9 +58,8 @@ function Copy-ADUserGroups {
     }
 
     try {
-        $sourceGroups = Get-ADPrincipalGroupMembership -Identity $SourceUser | Where-Object {
-            $_.Name -notlike 'Domain Users'  # optionally exclude default group
-        }
+        $sourceGroups = Get-ADPrincipalGroupMembership -Identity $SourceUser
+        $targetGroups = Get-ADPrincipalGroupMembership -Identity $TargetUser
 
         if (-not $sourceGroups) {
             Write-Log -Level 'Information' -Message "No groups found for $SourceUser."
@@ -66,19 +68,19 @@ function Copy-ADUserGroups {
 
         Write-Log -Level 'Information' -Message "Found $($sourceGroups.Count) groups for $SourceUser."
 
-        foreach ($group in $sourceGroups) {
-            try {
-                $isMember = Get-ADGroupMember -Identity $group.Name | Where-Object { $_.SamAccountName -eq $TargetUser }
+        $targetGroupNames = $targetGroups | Select-Object -ExpandProperty DistinguishedName
 
-                if ($isMember) {
-                    Write-Log -Level 'Information' -Message "$TargetUser is already in $($group.Name)."
-                } else {
+        foreach ($group in $sourceGroups) {
+            if ($targetGroupNames -contains $group.DistinguishedName) {
+                Write-Log -Level 'Information' -Message "$TargetUser is already in $($group.Name)."
+            } else {
+                try {
                     Write-Log -Level 'Information' -Message "Adding $TargetUser to $($group.Name)."
-                    Add-ADGroupMember -Identity $group.Name -Members $TargetUser -ErrorAction Stop
+                    Add-ADGroupMember -Identity $group -Members $TargetUser -ErrorAction Stop
                     Write-Log -Level 'Success' -Message "$TargetUser added to $($group.Name)."
+                } catch {
+                    Write-Log -Level 'Error' -Message "Failed to add $TargetUser to $($group.Name): $_"
                 }
-            } catch {
-                Write-Log -Level 'Error' -Message "Failed to add $TargetUser to $($group.Name): $_"
             }
         }
 
@@ -93,6 +95,6 @@ Copy-ADUserGroups -SourceUser $sourceUser -TargetUser $targetUser
 
 Write-Log -Level 'Information' -Message "Script completed."
 Write-Host "Script execution completed. Press any key to exit..."
-[System.Console]::ReadKey() | Out-Null
-exit
+
+# exit
 # End of script
