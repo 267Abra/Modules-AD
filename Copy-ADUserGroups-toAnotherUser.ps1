@@ -94,7 +94,8 @@ function Copy-ADUserGroups {
 Copy-ADUserGroups -SourceUser $sourceUser -TargetUser $targetUser
 
 Write-Log -Level 'Information' -Message "Script completed."
-Write-Host "Script execution completed. Press any key to exit..."
+Write-Host "Script execution completed. Please check file logs under $logfile"
 
 # exit
 # End of script
+
